@@ -1,0 +1,223 @@
+{
+  "info": {
+    "name": "API Bitrix",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Verificar status da API",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat (IA)",
+      "item": [
+        {
+          "name": "Consultar chamado único",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"qual o status do chamado 123?\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Consultar múltiplos chamados",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"me dê o status dos chamados 123, 456 e 789\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Chamados abertos deste mês",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"quais chamados estão abertos este mês?\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Chamados de uma empresa",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"quais chamados abertos a empresa Acme tem?\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Ranking de responsáveis",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"me mostre o ranking de responsáveis pelos chamados abertos\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Listar Smart Process",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"liste os contratos do processo Contratos\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Criar chamado via IA",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"crie um chamado com o título 'Erro no sistema de login' com prazo para 10/06/2026\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Buscar empresa",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"busca a empresa Acme\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Chat via GET (pergunta simples)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/chat?q=qual o status do chamado 123?",
+              "host": ["{{base_url}}"],
+              "path": ["chat"],
+              "query": [{ "key": "q", "value": "qual o status do chamado 123?" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks (direto)",
+      "item": [
+        {
+          "name": "Buscar chamado por ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/tasks/123"
+          }
+        },
+        {
+          "name": "Listar todos os chamados",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/tasks"
+          }
+        },
+        {
+          "name": "Listar chamados abertos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tasks?status=abertos",
+              "host": ["{{base_url}}"],
+              "path": ["tasks"],
+              "query": [{ "key": "status", "value": "abertos" }]
+            }
+          }
+        },
+        {
+          "name": "Listar chamados concluídos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tasks?status=concluidos",
+              "host": ["{{base_url}}"],
+              "path": ["tasks"],
+              "query": [{ "key": "status", "value": "concluidos" }]
+            }
+          }
+        },
+        {
+          "name": "Listar chamados por período",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tasks?status=abertos&date_from=2026-01-01&date_to=2026-01-31",
+              "host": ["{{base_url}}"],
+              "path": ["tasks"],
+              "query": [
+                { "key": "status", "value": "abertos" },
+                { "key": "date_from", "value": "2026-01-01" },
+                { "key": "date_to", "value": "2026-01-31" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar chamados de uma empresa",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tasks?company_id=42",
+              "host": ["{{base_url}}"],
+              "path": ["tasks"],
+              "query": [{ "key": "company_id", "value": "42" }]
+            }
+          }
+        },
+        {
+          "name": "Criar chamado",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/tasks",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Erro no sistema de login\",\n  \"description\": \"Usuário não consegue acessar o painel\",\n  \"responsible_id\": \"7\",\n  \"deadline\": \"2026-06-10T18:00:00\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

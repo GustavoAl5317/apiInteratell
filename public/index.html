@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bitrix Assistant — Dev</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #21262d;
+      --border:   #30363d;
+      --text:     #c9d1d9;
+      --muted:    #8b949e;
+      --green:    #00a884;
+      --blue:     #58a6ff;
+      --yellow:   #e3b341;
+      --red:      #f85149;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      height: 48px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      flex-shrink: 0;
+    }
+    .logo { font-size: 17px; font-weight: 700; color: var(--green); }
+    .tag  { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
+    .api-indicator { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+    /* ── Workspace ── */
+    .workspace {
+      display: flex;
+      height: calc(100vh - 48px);
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════════════
+       COLUNA CHAT
+    ══════════════════════════════════════ */
+    .col-chat {
+      width: 45%;
+      min-width: 360px;
+      max-width: 620px;
+      display: flex;
+      flex-direction: column;
+      background: #0b141a;
+      border-right: 1px solid var(--border);
+    }
+
+    .chat-header {
+      background: #202c33;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #1a2830;
+      flex-shrink: 0;
+    }
+    .chat-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: linear-gradient(135deg, #00a884, #025c4c);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .chat-header-info .name { color: #e9edef; font-size: 16px; font-weight: 600; }
+    .chat-header-info .sub  { color: #8696a0; font-size: 12px; margin-top: 2px; }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: #0b141a;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3Cg fill='%23182229' fill-opacity='0.35'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .messages::-webkit-scrollbar { width: 4px; }
+    .messages::-webkit-scrollbar-thumb { background: #374045; border-radius: 4px; }
+
+    .date-sep { text-align: center; margin: 8px 0; }
+    .date-sep span { background: #182229; color: #8696a0; font-size: 11px; padding: 3px 12px; border-radius: 8px; }
+
+    /* Bolhas */
+    .bw { display: flex; }
+    .bw.sent { justify-content: flex-end; }
+    .bw.recv { justify-content: flex-start; }
+
+    .bubble {
+      max-width: 80%;
+      padding: 9px 13px 6px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+    .bw.sent .bubble { background: #005c4b; color: #e9edef; border-top-right-radius: 3px; }
+    .bw.recv .bubble { background: #202c33; color: #e9edef; border-top-left-radius: 3px; }
+
+    .btime { font-size: 10.5px; color: #8696a0; text-align: right; margin-top: 4px; }
+    .bw.sent .btime { color: #98d9cc; }
+
+    .resumo-box {
+      margin-top: 8px; padding: 8px 11px;
+      background: rgba(0,168,132,0.1);
+      border-left: 3px solid #00a884;
+      border-radius: 4px;
+      font-size: 13.5px; color: #d1f0e8; line-height: 1.6;
+    }
+    .card { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+    .card .f { font-size: 13px; color: #c9d1d9; }
+    .card .f em { color: #8696a0; font-style: normal; margin-right: 4px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11.5px; font-weight: 600; }
+    .badge.a { background:#1a3a2a; color:#00a884; }
+    .badge.c { background:#1a2a3a; color:#53bdeb; }
+    .badge.p { background:#3a2a1a; color:#f0a500; }
+    .badge.r { background:#3a1a1a; color:#f15c6d; }
+
+    /* Typing */
+    .typing-wrap { display: flex; }
+    .typing { background: #202c33; border-radius: 10px; border-top-left-radius: 3px; padding: 11px 16px; display: flex; gap: 5px; align-items: center; }
+    .typing span { width: 7px; height: 7px; background: #8696a0; border-radius: 50%; animation: bounce 1.2s infinite; }
+    .typing span:nth-child(2) { animation-delay: .2s; }
+    .typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce { 0%,80%,100%{transform:scale(.8);opacity:.5} 40%{transform:scale(1.2);opacity:1} }
+
+    /* Input */
+    .input-bar {
+      background: #202c33;
+      padding: 10px 12px;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      border-top: 1px solid #1a2830;
+      flex-shrink: 0;
+    }
+    .input-inner {
+      flex: 1; background: #2a3942; border-radius: 26px;
+      padding: 10px 16px; display: flex; align-items: flex-end;
+    }
+    textarea#msg {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: #e9edef; font-size: 14px; font-family: inherit;
+      resize: none; max-height: 120px; line-height: 1.5;
+    }
+    textarea#msg::placeholder { color: #8696a0; }
+    .btn-send {
+      width: 46px; height: 46px; border-radius: 50%;
+      background: #00a884; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s; flex-shrink: 0;
+    }
+    .btn-send:hover { background: #00c49a; }
+    .btn-send:disabled { background: #374045; cursor: default; }
+    .btn-send svg { fill: #fff; }
+
+    /* ══════════════════════════════════════
+       COLUNA DIREITA
+    ══════════════════════════════════════ */
+    .col-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .tab {
+      padding: 13px 22px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+      user-select: none;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    .tab-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+    .tab-content.active { display: flex; }
+
+    /* ── Logs ── */
+    .logs-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .logs-toolbar {
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .logs-toolbar span { font-size: 12px; color: var(--muted); }
+    .btn-clear { font-size: 11px; color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+    .btn-clear:hover { color: var(--red); border-color: var(--red); }
+
+    .logs-list {
+      flex: 1; overflow-y: auto;
+      padding: 12px 16px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .logs-list::-webkit-scrollbar { width: 4px; }
+    .logs-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .log-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 0; }
+
+    .log-entry {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 12px;
+    }
+    .log-entry-header {
+      padding: 9px 14px;
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; user-select: none;
+      background: var(--surface2);
+      border-bottom: 1px solid transparent;
+    }
+    .log-entry-header:hover { background: #2d333b; }
+    .log-entry.open .log-entry-header { border-bottom-color: var(--border); }
+
+    .log-tool-badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 4px; }
+    .tool-get_task         { background:#1c2e1c; color:#56d364; }
+    .tool-list_tasks       { background:#1c2626; color:#53bdeb; }
+    .tool-create_task      { background:#2e1c2e; color:#bc8cff; }
+    .tool-search_company   { background:#2e261c; color:#e3b341; }
+    .tool-verify_client    { background:#1c2e2e; color:#79c0ff; }
+    .tool-list_smart_items { background:#1c1c2e; color:#a5d6ff; }
+
+    .log-args-preview { flex:1; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:monospace; font-size:11px; }
+    .log-ms { color:var(--muted); font-size:11px; flex-shrink:0; }
+    .log-chevron { color:var(--muted); font-size:13px; transition:transform .2s; flex-shrink:0; }
+    .log-entry.open .log-chevron { transform:rotate(90deg); }
+
+    .log-body { display:none; }
+    .log-entry.open .log-body { display:block; }
+
+    .log-section { padding:10px 14px; border-bottom:1px solid var(--border); }
+    .log-section:last-child { border-bottom:none; }
+    .log-section-title { font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:6px; }
+    .log-section pre {
+      font-family:'Cascadia Code','Fira Code',monospace; font-size:11.5px;
+      color:var(--text); white-space:pre-wrap; word-break:break-word;
+      line-height:1.5; max-height:260px; overflow-y:auto;
+    }
+    .log-section pre::-webkit-scrollbar { width:3px; }
+    .log-section pre::-webkit-scrollbar-thumb { background:var(--border); }
+
+    .json-key  { color:#79c0ff; }
+    .json-str  { color:#a5d6ff; }
+    .json-num  { color:#79c0ff; }
+    .json-bool { color:#ff7b72; }
+    .json-null { color:var(--muted); }
+
+    /* ── Prompt ── */
+    .prompt-panel { flex:1; display:flex; flex-direction:column; padding:18px; gap:12px; overflow:hidden; }
+    .prompt-panel label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; }
+    .prompt-panel textarea {
+      flex:1; background:var(--surface2); border:1px solid var(--border);
+      border-radius:8px; color:var(--text);
+      font-family:'Cascadia Code','Fira Code',monospace;
+      font-size:12.5px; line-height:1.6; padding:13px 15px;
+      resize:none; outline:none; transition:border-color .15s;
+    }
+    .prompt-panel textarea:focus { border-color:var(--blue); }
+    .prompt-hint { font-size:12px; color:var(--muted); line-height:1.5; }
+    .prompt-actions { display:flex; align-items:center; gap:10px; }
+    .btn { padding:8px 18px; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; border:none; transition:opacity .15s; }
+    .btn:hover { opacity:.85; }
+    .btn-primary { background:var(--blue); color:#0d1117; }
+    .btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--border); }
+    .prompt-saved { font-size:12px; color:var(--green); opacity:0; transition:opacity .3s; }
+    .prompt-saved.show { opacity:1; }
+
+    /* ── Responsivo ── */
+    @media (max-width: 900px) {
+      .col-chat { width: 100%; max-width: 100%; border-right: none; }
+      .col-right { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center">
+    <span class="logo">⚙ Bitrix Assistant</span>
+    <span class="tag">DEV</span>
+  </div>
+  <div class="api-indicator">
+    <div class="dot" id="api-dot"></div>
+    <span id="api-status">verificando...</span>
+  </div>
+</div>
+
+<div class="workspace">
+
+  <!-- ── Chat ── -->
+  <div class="col-chat">
+    <div class="chat-header">
+      <div class="chat-avatar">🤖</div>
+      <div class="chat-header-info">
+        <div class="name">Bitrix Assistant</div>
+        <div class="sub" id="chat-sub">online</div>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="date-sep"><span>HOJE</span></div>
+      <div class="bw recv">
+        <div class="bubble">
+          Olá! 👋 Sou o assistente do Bitrix24.<br>
+          Posso consultar chamados, listar tarefas, buscar empresas e muito mais.<br><br>
+          Como posso te ajudar?
+          <div class="btime" id="init-time"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-inner">
+        <textarea id="msg" placeholder="Digite uma mensagem..." rows="1"></textarea>
+      </div>
+      <button class="btn-send" id="btn-send">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="21" height="21">
+          <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Painel direito ── -->
+  <div class="col-right">
+    <div class="tabs">
+      <div class="tab active" data-tab="logs">📋 Logs do Bitrix</div>
+      <div class="tab" data-tab="prompt">✏️ System Prompt</div>
+    </div>
+
+    <!-- Logs -->
+    <div class="tab-content active" id="tab-logs">
+      <div class="logs-panel">
+        <div class="logs-toolbar">
+          <span id="logs-count">0 chamadas</span>
+          <button class="btn-clear" id="btn-clear-logs">Limpar</button>
+        </div>
+        <div class="logs-list" id="logs-list">
+          <div class="log-empty" id="log-empty">Nenhuma consulta ainda.<br>Envie uma mensagem para ver os logs aqui.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prompt -->
+    <div class="tab-content" id="tab-prompt">
+      <div class="prompt-panel">
+        <label>System Prompt — aplicado em todas as próximas mensagens</label>
+        <textarea id="prompt-editor" spellcheck="false" placeholder="Carregando..."></textarea>
+        <div class="prompt-hint">
+          💡 Edite e clique em <strong>Salvar</strong>. O prompt será usado a partir da próxima mensagem. <strong>Restaurar padrão</strong> volta ao original.
+        </div>
+        <div class="prompt-actions">
+          <button class="btn btn-primary" id="btn-save-prompt">Salvar</button>
+          <button class="btn btn-ghost" id="btn-reset-prompt">Restaurar padrão</button>
+          <span class="prompt-saved" id="prompt-saved">✓ Salvo!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = 'http://10.172.101.25:3000';
+
+  const history     = [];
+  let customPrompt  = null;
+  let defaultPrompt = '';
+  let totalLogs     = 0;
+
+  document.getElementById('init-time').textContent = now();
+  checkHealth();
+  loadDefaultPrompt();
+
+  // ── Utilitários ───────────────────────────────────────────────────────────
+  function now() {
+    return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function syntaxHighlight(obj) {
+    return escapeHtml(JSON.stringify(obj, null, 2)).replace(
+      /("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+      m => {
+        if (/^"/.test(m)) return /:$/.test(m) ? `<span class="json-key">${m}</span>` : `<span class="json-str">${m}</span>`;
+        if (/true|false/.test(m)) return `<span class="json-bool">${m}</span>`;
+        if (/null/.test(m)) return `<span class="json-null">${m}</span>`;
+        return `<span class="json-num">${m}</span>`;
+      }
+    );
+  }
+
+  // ── Health ────────────────────────────────────────────────────────────────
+  async function checkHealth() {
+    try {
+      const r = await fetch(`${API}/health`);
+      const ok = r.ok;
+      document.getElementById('api-dot').className = 'dot' + (ok ? '' : ' offline');
+      document.getElementById('api-status').textContent = ok ? 'API online' : 'API offline';
+    } catch {
+      document.getElementById('api-dot').className = 'dot offline';
+      document.getElementById('api-status').textContent = 'API offline';
+    }
+  }
+
+  async function loadDefaultPrompt() {
+    try {
+      const r = await fetch(`${API}/chat/prompt`);
+      const j = await r.json();
+      defaultPrompt = j.prompt || '';
+      document.getElementById('prompt-editor').value = defaultPrompt;
+    } catch {
+      document.getElementById('prompt-editor').value = '(erro ao carregar)';
+    }
+  }
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Prompt ────────────────────────────────────────────────────────────────
+  document.getElementById('btn-save-prompt').addEventListener('click', () => {
+    customPrompt = document.getElementById('prompt-editor').value.trim() || null;
+    flash('✓ Prompt salvo!');
+  });
+  document.getElementById('btn-reset-prompt').addEventListener('click', () => {
+    customPrompt = null;
+    document.getElementById('prompt-editor').value = defaultPrompt;
+    flash('↺ Prompt restaurado!');
+  });
+  function flash(msg) {
+    const el = document.getElementById('prompt-saved');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2500);
+  }
+
+  // ── Chat ──────────────────────────────────────────────────────────────────
+  const messagesEl = document.getElementById('messages');
+  const msgEl      = document.getElementById('msg');
+  const btnSend    = document.getElementById('btn-send');
+
+  msgEl.addEventListener('input', () => {
+    msgEl.style.height = 'auto';
+    msgEl.style.height = Math.min(msgEl.scrollHeight, 120) + 'px';
+  });
+  msgEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  btnSend.addEventListener('click', send);
+
+  function scrollBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+  function addBubble(role, content) {
+    const wrap   = document.createElement('div');
+    wrap.className = `bw ${role === 'user' ? 'sent' : 'recv'}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = role === 'user' ? escapeHtml(content) : formatResponse(content);
+    const t = document.createElement('div');
+    t.className = 'btime';
+    t.textContent = now();
+    bubble.appendChild(t);
+    wrap.appendChild(bubble);
+    messagesEl.appendChild(wrap);
+    scrollBottom();
+  }
+
+  function addTyping() {
+    const w = document.createElement('div');
+    w.className = 'typing-wrap';
+    w.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+    messagesEl.appendChild(w);
+    scrollBottom();
+    return w;
+  }
+
+  async function send() {
+    const text = msgEl.value.trim();
+    if (!text || btnSend.disabled) return;
+
+    msgEl.value = '';
+    msgEl.style.height = 'auto';
+    addBubble('user', text);
+    history.push({ role: 'user', content: text });
+
+    btnSend.disabled = true;
+    msgEl.disabled   = true;
+    document.getElementById('chat-sub').textContent = 'digitando...';
+    const typing = addTyping();
+
+    try {
+      const body = { messages: history };
+      if (customPrompt) body.system_prompt = customPrompt;
+
+      const res  = await fetch(`${API}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      typing.remove();
+
+      if (!res.ok || !json.ok) {
+        addBubble('bot', { text: `❌ Erro: ${json.error || 'Falha na requisição'}` });
+        return;
+      }
+
+      const { ok, error, _logs, ...data } = json;
+      addBubble('bot', data);
+      history.push({ role: 'assistant', content: JSON.stringify(data) });
+      if (_logs?.length) addLogs(_logs);
+
+    } catch {
+      typing.remove();
+      addBubble('bot', { text: '❌ Não foi possível conectar à API.' });
+    } finally {
+      btnSend.disabled = false;
+      msgEl.disabled   = false;
+      msgEl.focus();
+      document.getElementById('chat-sub').textContent = 'online';
+    }
+  }
+
+  // ── Formatação das respostas ──────────────────────────────────────────────
+  function formatResponse(data) {
+    // Resposta de texto simples (verificação, saudação, erros da IA)
+    if (data.text)    return `<span>${escapeHtml(data.text)}</span>`;
+    if (data.message) return `<span>${escapeHtml(data.message)}</span>`;
+    if (data.mensagem) return `<span>${escapeHtml(data.mensagem)}</span>`;
+
+    // Chamado único
+    if (data.chamado) {
+      const c = data.chamado;
+      return `<div class="card">
+        <div class="f"><em>📋</em>#${c.id} — <strong>${escapeHtml(c.titulo||c.title||'')}</strong></div>
+        <div class="f"><em>📊</em>${badgeSt(c.status)}</div>
+        ${c.responsavel ? `<div class="f"><em>👤</em>${escapeHtml(c.responsavel)}</div>` : ''}
+        ${c.criado_em   ? `<div class="f"><em>📅</em>${c.criado_em}</div>` : ''}
+        ${c.prazo       ? `<div class="f"><em>⏰</em>${c.prazo}</div>` : ''}
+        ${c.empresas_vinculadas?.length ? `<div class="f"><em>🏢</em>${c.empresas_vinculadas.map(e=>escapeHtml(e.title||e.titulo)).join(', ')}</div>` : ''}
+      </div>${resumoBox(data.resumo)}`;
+    }
+
+    // Múltiplos chamados
+    if (data.chamados) {
+      const lista = data.chamados.map(c => `
+        <div class="card" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #374045">
+          <div class="f"><em>📋</em>#${c.id} — <strong>${escapeHtml(c.titulo||c.title||'')}</strong></div>
+          <div class="f"><em>📊</em>${badgeSt(c.status)}${c.responsavel ? ` <span style="color:#8696a0;margin-left:6px">👤 ${escapeHtml(c.responsavel)}</span>` : ''}</div>
+          ${c.prazo ? `<div class="f"><em>⏰</em>${c.prazo}</div>` : ''}
+        </div>`).join('');
+      return lista + resumoBox(data.resumo);
+    }
+
+    // Visão gerencial
+    if (data.visao_gerencial) {
+      const v = data.visao_gerencial;
+      const top = (v.ranking_responsaveis||[]).slice(0,3).map((r,i) =>
+        `<div class="f"><em>${['🥇','🥈','🥉'][i]}</em>${escapeHtml(r.nome)} — ${r.total}</div>`).join('');
+      return `<div class="card">
+        <div class="f"><em>📊</em><strong>${v.total}</strong> chamados</div>
+        ${v.empresa ? `<div class="f"><em>🏢</em>${escapeHtml(v.empresa)}</div>` : ''}
+        ${top}
+      </div>${resumoBox(data.resumo)}`;
+    }
+
+    // Smart Process
+    if (data.processo) {
+      return `<div class="card">
+        <div class="f"><em>⚙️</em><strong>${escapeHtml(data.processo)}</strong> — ${data.total} itens</div>
+        ${data.empresa ? `<div class="f"><em>🏢</em>${escapeHtml(data.empresa)}</div>` : ''}
+      </div>${resumoBox(data.resumo)}`;
+    }
+
+    // Chamado criado
+    if (data.chamado_criado) {
+      const c = data.chamado_criado;
+      return `<div class="card">
+        <div class="f"><em>✅</em>#${c.id} — ${escapeHtml(c.titulo||c.title||'')}</div>
+        <div class="f"><em>📊</em>${badgeSt(c.status)}</div>
+      </div>${resumoBox(data.resumo)}`;
+    }
+
+    // Empresas
+    if (data.empresas) {
+      return `<div class="card">
+        ${data.empresas.map(e=>`<div class="f"><em>🏢</em><strong>${escapeHtml(e.titulo||e.title)}</strong>${e.phone?` — ${e.phone}`:''}</div>`).join('')}
+      </div>${resumoBox(data.resumo)}`;
+    }
+
+    // Só resumo
+    if (data.resumo) return resumoBox(data.resumo);
+
+    // Fallback: qualquer string no primeiro campo
+    const first = Object.values(data)[0];
+    if (typeof first === 'string') return `<span>${escapeHtml(first)}</span>`;
+
+    return `<pre style="font-size:11px;opacity:.7">${escapeHtml(JSON.stringify(data,null,2))}</pre>`;
+  }
+
+  function resumoBox(txt) {
+    return txt ? `<div class="resumo-box">${escapeHtml(txt)}</div>` : '';
+  }
+
+  function badgeSt(status) {
+    if (!status) return '';
+    const s = status.toLowerCase();
+    let cls = 'p';
+    if (s.includes('andamento') || s.includes('nova')) cls = 'a';
+    else if (s.includes('conclu') || s.includes('aprovad')) cls = 'c';
+    else if (s.includes('recus') || s.includes('adiada')) cls = 'r';
+    return `<span class="badge ${cls}">${escapeHtml(status)}</span>`;
+  }
+
+  // ── Logs ──────────────────────────────────────────────────────────────────
+  function addLogs(logs) {
+    const list = document.getElementById('logs-list');
+    document.getElementById('log-empty')?.remove();
+
+    const sep = document.createElement('div');
+    sep.style.cssText = 'font-size:10px;color:var(--muted);padding:2px 2px 6px;letter-spacing:.4px';
+    sep.textContent = `── ${now()} ${'─'.repeat(30)}`;
+    list.appendChild(sep);
+
+    logs.forEach(log => {
+      totalLogs++;
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      const hasError   = !!log.result?.error;
+      const argsPreview = JSON.stringify(log.args).substring(0, 90);
+
+      entry.innerHTML = `
+        <div class="log-entry-header">
+          <span class="log-tool-badge tool-${log.tool}">${log.tool}</span>
+          <span class="log-args-preview">${escapeHtml(argsPreview)}</span>
+          <span class="log-ms" style="color:${log.ms>1000?'var(--yellow)':'var(--muted)'}">${log.ms}ms</span>
+          ${hasError ? '<span style="color:var(--red);font-size:11px">⚠</span>' : ''}
+          <span class="log-chevron">›</span>
+        </div>
+        <div class="log-body">
+          <div class="log-section">
+            <div class="log-section-title">Argumentos enviados</div>
+            <pre>${syntaxHighlight(log.args)}</pre>
+          </div>
+          <div class="log-section">
+            <div class="log-section-title">Retorno do Bitrix ${hasError?'⚠ erro':'✓'}</div>
+            <pre>${syntaxHighlight(log.result)}</pre>
+          </div>
+        </div>`;
+
+      entry.querySelector('.log-entry-header').addEventListener('click', () => entry.classList.toggle('open'));
+      list.appendChild(entry);
+    });
+
+    document.getElementById('logs-count').textContent = `${totalLogs} chamada${totalLogs!==1?'s':''}`;
+    list.scrollTop = list.scrollHeight;
+
+    // Muda para aba logs automaticamente
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelector('[data-tab="logs"]').classList.add('active');
+    document.getElementById('tab-logs').classList.add('active');
+  }
+
+  document.getElementById('btn-clear-logs').addEventListener('click', () => {
+    totalLogs = 0;
+    document.getElementById('logs-count').textContent = '0 chamadas';
+    document.getElementById('logs-list').innerHTML =
+      '<div class="log-empty" id="log-empty">Nenhuma consulta ainda.<br>Envie uma mensagem para ver os logs aqui.</div>';
+  });
+</script>
+</body>
+</html>
