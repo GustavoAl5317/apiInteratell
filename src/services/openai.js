@@ -111,6 +111,8 @@ const SYSTEM_PROMPT = `Você é um assistente de suporte da Interatell que opera
 
 ═══ FLUXO DE VERIFICAÇÃO DE IDENTIDADE (OBRIGATÓRIO) ═══
 
+{{CONTEXTO_TELEFONE}}
+
 Antes de responder qualquer pergunta sobre chamados, contratos ou qualquer dado do sistema, você DEVE verificar a identidade do usuário seguindo exatamente estes passos:
 
 PASSO 1 — Se o usuário ainda não informou empresa e telefone:
@@ -188,6 +190,91 @@ Após executar as ferramentas, responda SOMENTE com JSON válido (sem markdown) 
   "resumo": "<resultado da busca>"
 }`;
 
+/**
+ * Resolve o placeholder {{CONTEXTO_TELEFONE}} do SYSTEM_PROMPT.
+ * Se `phone` for informado (canal WhatsApp), instrui o modelo a pular a
+ * pergunta de telefone e usar o número do remetente automaticamente no PASSO 2.
+ */
+function resolvePrompt(template, phone) {
+  const contexto = phone
+    ? `CONTEXTO DO CANAL: esta conversa vem do WhatsApp e o telefone do usuário já é conhecido: ${phone}.
+No PASSO 1, peça APENAS o nome da empresa (não peça telefone, ele já está disponível).
+No PASSO 2, chame verify_client usando phone="${phone}" automaticamente, sem perguntar ao usuário.`
+    : '';
+  return template.replace('{{CONTEXTO_TELEFONE}}', contexto);
+}
+
+/**
+ * Converte a resposta estruturada do assistente em texto simples
+ * formatado para WhatsApp (negrito com *, emojis, sem HTML/markdown).
+ */
+function formatForWhatsapp(data) {
+  if (data.text)     return data.text;
+  if (data.message)  return data.message;
+  if (data.mensagem) return data.mensagem;
+
+  const lines = [];
+
+  if (data.chamado) {
+    const c = data.chamado;
+    lines.push(`📋 *#${c.id} — ${c.titulo || c.title || ''}*`);
+    lines.push(`📊 Status: ${c.status}`);
+    if (c.responsavel) lines.push(`👤 Responsável: ${c.responsavel}`);
+    if (c.criado_em)   lines.push(`📅 Criado em: ${c.criado_em}`);
+    if (c.prazo)       lines.push(`⏰ Prazo: ${c.prazo}`);
+    if (c.empresas_vinculadas?.length)   lines.push(`🏢 Empresa: ${c.empresas_vinculadas.map((e) => e.title || e.titulo).join(', ')}`);
+    if (c.contratos_vinculados?.length)  lines.push(`📄 Contrato: ${c.contratos_vinculados.map((d) => d.title || d.titulo).join(', ')}`);
+  } else if (data.chamados) {
+    for (const c of data.chamados) {
+      lines.push(`📋 *#${c.id}* — ${c.titulo || c.title || ''}`);
+      let l = `📊 ${c.status}`;
+      if (c.responsavel) l += ` | 👤 ${c.responsavel}`;
+      lines.push(l);
+      if (c.prazo) lines.push(`⏰ Prazo: ${c.prazo}`);
+      lines.push('');
+    }
+  } else if (data.visao_gerencial) {
+    const v = data.visao_gerencial;
+    lines.push(`📊 *Total: ${v.total} chamados*`);
+    if (v.empresa) lines.push(`🏢 Empresa: ${v.empresa}`);
+    if (v.ranking_responsaveis?.length) {
+      lines.push('');
+      lines.push('*Ranking de responsáveis:*');
+      v.ranking_responsaveis.slice(0, 5).forEach((r, i) => {
+        lines.push(`${['🥇', '🥈', '🥉'][i] ?? '▪️'} ${r.nome} — ${r.total}`);
+      });
+    }
+  } else if (data.processo) {
+    lines.push(`⚙️ *${data.processo}* — ${data.total} itens`);
+    if (data.empresa) lines.push(`🏢 Empresa: ${data.empresa}`);
+    if (data.itens?.length) {
+      lines.push('');
+      data.itens.slice(0, 10).forEach((i) => lines.push(`▪️ #${i.id} ${i.titulo || i.title} — ${i.stage}`));
+    }
+  } else if (data.chamado_criado) {
+    const c = data.chamado_criado;
+    lines.push('✅ Chamado criado com sucesso!');
+    lines.push(`📋 *#${c.id} — ${c.titulo || c.title || ''}*`);
+    lines.push(`📊 ${c.status}`);
+  } else if (data.empresas) {
+    for (const e of data.empresas) {
+      lines.push(`🏢 *${e.titulo || e.title}*${e.phone ? ` — ${e.phone}` : ''}`);
+    }
+  }
+
+  if (data.resumo) {
+    if (lines.length) lines.push('');
+    lines.push(data.resumo);
+  }
+
+  if (lines.length) return lines.join('\n').trim();
+
+  const first = Object.values(data)[0];
+  if (typeof first === 'string') return first;
+
+  return 'Desculpe, não consegui processar sua solicitação.';
+}
+
 function formatDate(raw) {
   if (!raw) return null;
   const d = new Date(raw);
@@ -233,9 +320,10 @@ async function executeTool(name, args) {
   throw new Error(`Ferramenta desconhecida: ${name}`);
 }
 
-async function chat(messages, customSystemPrompt) {
+async function chat(messages, customSystemPrompt, phone = null) {
   const logs = [];
-  const history = [{ role: 'system', content: customSystemPrompt || SYSTEM_PROMPT }, ...messages];
+  const systemPrompt = resolvePrompt(customSystemPrompt || SYSTEM_PROMPT, phone);
+  const history = [{ role: 'system', content: systemPrompt }, ...messages];
 
   let response = await client.chat.completions.create({
     model: 'gpt-4o',
@@ -284,7 +372,16 @@ async function chat(messages, customSystemPrompt) {
     message = response.choices[0].message;
   }
 
-  return { ...JSON.parse(message.content), _logs: logs };
+  if (iterations >= 10 && message.tool_calls?.length > 0) {
+    console.error('Limite de iterações de tool calls atingido (10) sem resposta final do modelo.');
+  }
+
+  try {
+    return { ...JSON.parse(message.content), _logs: logs };
+  } catch (err) {
+    console.error('Resposta do modelo não é JSON válido:', message.content);
+    throw new Error('Resposta inválida do assistente');
+  }
 }
 
-module.exports = { chat, SYSTEM_PROMPT };
+module.exports = { chat, SYSTEM_PROMPT, resolvePrompt, formatForWhatsapp };

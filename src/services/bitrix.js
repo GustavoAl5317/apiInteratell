@@ -322,11 +322,21 @@ function normalizePhone(phone) {
 }
 
 async function getCompanyContacts(companyId) {
-  const res = await bx('crm.contact.list', {
-    filter: { COMPANY_ID: companyId },
-    select: ['ID', 'NAME', 'LAST_NAME', 'PHONE'],
-  });
-  return (res.result ?? []).map((c) => ({
+  let all = [];
+  let start = 0;
+  while (true) {
+    const res = await bx('crm.contact.list', {
+      filter: { COMPANY_ID: companyId },
+      select: ['ID', 'NAME', 'LAST_NAME', 'PHONE'],
+      start,
+    });
+    const batch = res.result ?? [];
+    all = all.concat(batch);
+    const total = res.total ?? 0;
+    start += batch.length;
+    if (all.length >= total || batch.length === 0) break;
+  }
+  return all.map((c) => ({
     id: c.ID,
     name: [c.NAME, c.LAST_NAME].filter(Boolean).join(' ').trim(),
     phones: (c.PHONE ?? []).map((p) => normalizePhone(p.VALUE)).filter(Boolean),

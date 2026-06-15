@@ -33,9 +33,24 @@ const limiter = rateLimit({
   message: { ok: false, error: 'Muitas requisições. Aguarde 1 minuto e tente novamente.' },
 });
 app.use('/chat', limiter);
+app.use('/tasks', limiter);
 
 // ── Body Parser ───────────────────────────────────────────────────────────────
 app.use(express.json());
+
+// ── Autenticação opcional de /tasks e /chat ──────────────────────────────────
+// Se API_KEY estiver definida no .env, exige header "x-api-key" para acessar essas rotas.
+// Mantém as rotas abertas caso API_KEY não seja configurada (compatibilidade com setups existentes).
+if (process.env.API_KEY) {
+  const requireApiKey = (req, res, next) => {
+    if (req.get('x-api-key') !== process.env.API_KEY) {
+      return res.status(401).json({ ok: false, error: 'Header "x-api-key" inválido ou ausente' });
+    }
+    next();
+  };
+  app.use('/tasks', requireApiKey);
+  app.use('/chat', requireApiKey);
+}
 
 // ── Logging básico ────────────────────────────────────────────────────────────
 app.use((req, _res, next) => {
