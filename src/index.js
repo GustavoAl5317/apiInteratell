@@ -18,6 +18,10 @@ const chatRouter  = require('./routes/chat');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Atrás de proxy (ngrok, nginx, etc) — necessário para express-rate-limit
+// identificar IPs corretamente via X-Forwarded-For.
+app.set('trust proxy', 1);
+
 // ── CORS ──────────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',  // defina CORS_ORIGIN no .env para restringir
